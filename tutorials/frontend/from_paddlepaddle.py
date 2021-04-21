@@ -75,8 +75,6 @@ shape_dict = {input_name: img.shape}
 
 print(shape_dict)
 
-# mod, params = relay.frontend.from_paddlepaddle(mobile_netv3_path)
-
 ######################################################################
 # Compile the model with relay
 # ---------------------------------------------
@@ -106,34 +104,4 @@ print("Execute on TVM Started ... ")
 tvm_output = intrp.evaluate()(tvm.nd.array(img.astype(dtype)),
                               **params).asnumpy()
 print("Execute on TVM END ... ")
-######################################################################
-# Display results
-# ---------------------------------------------
-# We put input and output image neck to neck. The luminance channel, `Y` is the output
-# from the model. The chroma channels `Cb` and `Cr` are resized to match with a simple
-# bicubic algorithm. The image is then recombined and converted back to `RGB`.
-from matplotlib import pyplot as plt
 
-out_y = Image.fromarray(np.uint8((tvm_output[0, 0]).clip(0, 255)), mode="L")
-out_cb = img_cb.resize(out_y.size, Image.BICUBIC)
-out_cr = img_cr.resize(out_y.size, Image.BICUBIC)
-result = Image.merge("YCbCr", [out_y, out_cb, out_cr]).convert("RGB")
-canvas = np.full((672, 672 * 2, 3), 255)
-canvas[0:224, 0:224, :] = np.asarray(img)
-canvas[:, 672:, :] = np.asarray(result)
-plt.imshow(canvas.astype(np.uint8))
-plt.show()
-
-######################################################################
-# Notes
-# ---------------------------------------------
-# By default, ONNX defines models in terms of dynamic shapes. The ONNX importer
-# retains that dynamism upon import, and the compiler attemps to convert the model
-# into a static shapes at compile time. If this fails, there may still be dynamic
-# operations in the model. Not all TVM kernels currently support dynamic shapes,
-# please file an issue on discuss.tvm.apache.org if you hit an error with dynamic kernels.
-#
-# This particular model was build using an older version of ONNX. During the import
-# phase ONNX importer will run the ONNX verifier, which may throw a `Mismatched attribute type`
-# warning. Because TVM supports a number of different ONNX versions, the Relay model
-# will still be valid.

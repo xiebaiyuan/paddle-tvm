@@ -60,32 +60,9 @@ from .common import infer_type, get_name
 
 __all__ = ["from_paddlepaddle"]
 
-
 def from_paddlepaddle(model_dir,shape = None, save_file=None, dtype="float32", model_filename=None, params_filename=None,opset_version=9,enable_onnx_checker=False):
     print("from_paddlepaddle ==== >>>>>")
-
-    # if len(sys.argv) < 2:
-    # logging.info("Use \"paddle2onnx -h\" to print the help information")
-    # logging.info(
-    #         "For more information, please follow our github repo below:")
-    # logging.info("Github: https://github.com/PaddlePaddle/paddle2onnx.git")
-    # return
-
-    # parser = arg_parser()
-    # args = parser.parse_args()
-
-    # if args.version:
-    #     import paddle2onnx
-    #     logging.info("paddle2onnx-{} with python>=2.7, paddlepaddle>=1.8.0".
-    #                  format(paddle2onnx.__version__))
-    #     return
-
-    assert model_dir is not None, "model_dir should be defined while translating paddle model to onnx"
-    
-    
-    # assert save_file is not None, "save_file should be defined while translating paddle model to onnx"
-    
-    
+    assert model_dir is not None, "model_dir should be defined while translating paddle model to onnx"    
     model = loadfileprogram2onnx(
         model_dir,
         save_file,
@@ -94,55 +71,6 @@ def from_paddlepaddle(model_dir,shape = None, save_file=None, dtype="float32", m
         opset_version=opset_version,
         enable_onnx_checker=enable_onnx_checker)
 
-
-    
-
-    """Convert a ONNX model into an equivalent Relay Function.
-
-    ONNX graphs are represented as Python Protobuf objects.
-    The companion parameters will be handled automatically.
-    However, the input names from onnx graph is vague, mixing inputs and
-    network weights/bias such as "1", "2"...
-    For convenience, we rename the `real` input names to "input_0",
-    "input_1"... And renaming parameters to "param_0", "param_1"...
-
-    By default, ONNX defines models in terms of dynamic shapes. The ONNX importer
-    retains that dynamism upon import, and the compiler attempts to convert the
-    model into a static shapes at compile time. If this fails, there may still
-    be dynamic operations in the model. Not all TVM kernels currently support
-    dynamic shapes, please file an issue on discuss.tvm.apache.org
-    if you hit an error with dynamic kernels.
-
-    Parameters
-    ----------
-    model : protobuf object
-        ONNX ModelProto after ONNX v1.1.0
-
-    shape : dict of str to tuple, optional
-        The input shape to the graph
-
-    dtype : str or dict of str to str
-        The input types to the graph
-
-    opset : int, optional
-        Override to autodetected opset.
-        This can be helpful for some testing.
-
-    freeze_params: bool
-        If this parameter is true, the importer will take any provided
-        onnx input values (weights, shapes, etc) and embed them into the relay model
-        as Constants instead of variables. This allows more aggressive optimizations
-        at compile time and helps in making models static if certain inputs represent
-        attributes relay would traditionally consider compile-time constants.
-
-    Returns
-    -------
-    mod : tvm.IRModule
-        The relay module for compilation
-
-    params : dict of str to tvm.nd.NDArray
-        The parameter dict to be used by relay
-    """
     try:
         import onnx
 
@@ -173,53 +101,6 @@ def from_paddlepaddle(model_dir,shape = None, save_file=None, dtype="float32", m
 
 
 def from_paddlepaddle_onnx(model, shape=None, dtype="float32", opset=None, freeze_params=False):
-    print("from_paddlepaddle ==== >>>>>")
-    """Convert a ONNX model into an equivalent Relay Function.
-
-    ONNX graphs are represented as Python Protobuf objects.
-    The companion parameters will be handled automatically.
-    However, the input names from onnx graph is vague, mixing inputs and
-    network weights/bias such as "1", "2"...
-    For convenience, we rename the `real` input names to "input_0",
-    "input_1"... And renaming parameters to "param_0", "param_1"...
-
-    By default, ONNX defines models in terms of dynamic shapes. The ONNX importer
-    retains that dynamism upon import, and the compiler attempts to convert the
-    model into a static shapes at compile time. If this fails, there may still
-    be dynamic operations in the model. Not all TVM kernels currently support
-    dynamic shapes, please file an issue on discuss.tvm.apache.org
-    if you hit an error with dynamic kernels.
-
-    Parameters
-    ----------
-    model : protobuf object
-        ONNX ModelProto after ONNX v1.1.0
-
-    shape : dict of str to tuple, optional
-        The input shape to the graph
-
-    dtype : str or dict of str to str
-        The input types to the graph
-
-    opset : int, optional
-        Override to autodetected opset.
-        This can be helpful for some testing.
-
-    freeze_params: bool
-        If this parameter is true, the importer will take any provided
-        onnx input values (weights, shapes, etc) and embed them into the relay model
-        as Constants instead of variables. This allows more aggressive optimizations
-        at compile time and helps in making models static if certain inputs represent
-        attributes relay would traditionally consider compile-time constants.
-
-    Returns
-    -------
-    mod : tvm.IRModule
-        The relay module for compilation
-
-    params : dict of str to tvm.nd.NDArray
-        The parameter dict to be used by relay
-    """
     try:
         import onnx
 
@@ -346,30 +227,3 @@ def loadfileprogram2onnx(model_dir,
         opset_version=opset_version,
         enable_onnx_checker=enable_onnx_checker)
 
-
-# def main():
-#     if len(sys.argv) < 2:
-#         logging.info("Use \"paddle2onnx -h\" to print the help information")
-#         logging.info(
-#             "For more information, please follow our github repo below:")
-#         logging.info("Github: https://github.com/PaddlePaddle/paddle2onnx.git")
-#         return
-
-#     parser = arg_parser()
-#     args = parser.parse_args()
-
-#     if args.version:
-#         import paddle2onnx
-#         logging.info("paddle2onnx-{} with python>=2.7, paddlepaddle>=1.8.0".
-#                      format(paddle2onnx.__version__))
-#         return
-
-#     assert args.model_dir is not None, "--model_dir should be defined while translating paddle model to onnx"
-#     assert args.save_file is not None, "--save_file should be defined while translating paddle model to onnx"
-#     program2onnx(
-#         args.model_dir,
-#         args.save_file,
-#         args.model_filename,
-#         args.params_filename,
-#         opset_version=args.opset_version,
-#         enable_onnx_checker=args.enable_onnx_checker)
