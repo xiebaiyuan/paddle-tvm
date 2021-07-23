@@ -24,12 +24,16 @@ from tvm.rpc.proxy import Proxy
 
 def find_example_resource():
     """Find resource examples."""
-    curr_path = os.path.dirname(os.path.realpath(os.path.expanduser(__file__)))
-    base_path = os.path.abspath(os.path.join(curr_path, "..", "..", ".."))
+    # curr_path = os.path.dirname(os.path.realpath(os.path.expanduser(__file__)))
+    # base_path = os.path.abspath(os.path.join(curr_path, "..", "..", ".."))
+    base_path = "/Users/dengyuguang/opensource/tvm/"
     index_page = os.path.join(base_path, "web", "apps", "browser", "rpc_server.html")
     resource_files = [
         os.path.join(base_path, "web", "dist", "tvmjs.bundle.js"),
         os.path.join(base_path, "web", "dist", "wasm", "tvmjs_runtime.wasi.js"),
+        # os.path.join(base_path, "web", "dist", "wasm", "module.json"), # dyg adds
+        # os.path.join(base_path, "web", "dist", "wasm", "module.params"), # dyg add
+        os.path.join(base_path, "web", "dist", "wasm", "turning.wasm"), # dyg add
     ]
     resource_base = os.path.join(base_path, "web", "dist", "www")
     if os.path.isdir(resource_base):

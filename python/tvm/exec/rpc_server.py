@@ -48,6 +48,8 @@ def main(args):
         custom_addr=args.custom_addr,
         silent=args.silent,
         no_fork=not args.fork,
+        # from dyg codes..
+        is_proxy = args.isproxy,
     )
     server.proc.join()
 
@@ -80,6 +82,8 @@ if __name__ == "__main__":
     parser.add_argument(
         "--custom-addr", type=str, help="Custom IP Address to Report to RPC Tracker"
     )
+
+    parser.add_argument("--isproxy", type=int, default=False, help="The end search port of the RPC")
 
     parser.set_defaults(fork=True)
     args = parser.parse_args()
