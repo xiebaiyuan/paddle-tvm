@@ -259,6 +259,7 @@ def _listen_loop(sock, port, rpc_key, tracker_addr, load_library, custom_addr):
 
 
 def _connect_proxy_loop(addr, key, load_library):
+    print("_connect_proxy_loop " + key)
     key = "server:" + key
     retry_count = 0
     max_retry = 5

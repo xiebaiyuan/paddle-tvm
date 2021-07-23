@@ -362,6 +362,162 @@ class BaseGraphTuner(object):
             layout_transform_time
         )
 
+    def benchmark_layout_transform_rpc(
+        self,
+        measure_option,
+        layout_records=None,
+        target_host=None,
+        infer_layout=False,
+    ):
+        """Benchmark all possible layout transformation in the graph,
+        given a set of schedule candidates for each workload of target operator.
+
+        Parameters
+        ----------
+        min_exec_num : int, optional
+            Minimum number of execution. Final execution time is the average of
+            all execution time.
+
+        timeout : int, optional
+            Time out for each execution.
+
+        use_rpc : boolean, optional
+            Whether to use rpc mode for benchmarking.
+
+        device_key : str, optional
+            Remote device key which can be queried by
+            python -m tvm.exec.query_rpc_tracker --host=0.0.0.0 --port=9190
+
+        host : str, optional
+            IP address used to create RPC tracker on host machine.
+
+        port : int, optional
+            Port number used to create RPC tracker on host machine.
+
+        n_parallel: int, optional
+            The number of measurement task that can run in parallel.
+            Set this according to the number of cpu cores (for compilation) and
+            the number of devices you have (for measuring generate code).
+
+        build_func: str or callable, optional
+            'default': call default builder. This works for normal target (llvm, cuda)
+
+            'ndk': use Android NDK to create shared library. Use this for android target.
+
+            callable: customized build function for other backends (e.g. VTA).
+                      See autotvm/measure/measure_methods.py::default_build_func for example.
+
+        layout_records : str or iterator of (MeasureInput, MeasureResult). optional
+            Collection of layout_transform benchmarking records.
+            If is str, then it should be the filename of a records log file.
+                   Each row of this file is an encoded record pair.
+            Otherwise, it is an iterator.
+
+            If this argument is set, graph tuner will first check whether layout_transform
+            workload already exists in records and skip benchmarking if possible.
+
+        target_host : str, optional
+            str or :any:`tvm.target.Target` optional
+            Host compilation target, if target is device.
+            When TVM compiles device specific program such as CUDA,
+            we also need host(CPU) side code to interact with the driver
+            setup the dimensions and parameters correctly.
+            target_host is used to specify the host side codegen target.
+            By default, llvm is used if it is enabled,
+            otherwise a stackvm intepreter is used.
+
+        infer_layout : bool, optional
+            Whether to infer layout transformation time if it doesn't exist in records, instead
+            of benchmarking on target device.
+
+            This might bring performance loss comparing to benchmarking layout transformation.
+        """
+        self._logger.info("Start to benchmark layout transformation...")
+        if layout_records is None and infer_layout:
+            raise RuntimeError("Requires some records to infer layout transformation time.")
+
+        if isinstance(layout_records, str):
+            layout_records = load_from_file(layout_records)
+            if not layout_records and infer_layout:
+                raise RuntimeError("Records must be non-empty to infer layout transformation time.")
+
+        if isinstance(layout_records, str):
+            layout_records = load_from_file(layout_records)
+        num_flops, total_time = 0, 0
+        if layout_records is not None:
+            for record in layout_records:
+                ltf_wkl = record[0].task.workload
+                self._layout_transform_perf_records[ltf_wkl] = record
+                input_shape = ltf_wkl[1][1]
+                flops = np.prod(input_shape)
+                num_flops += flops
+                total_time += record[1].costs[0]
+        avg_time = total_time / num_flops if num_flops > 0 else 0
+
+        args_list = []
+
+        def _fetch_args_callback(from_node_idx, to_node_idx, from_sch_idx, to_sch_idx, args):
+            """Callback function to fetch layout transform args"""
+            _, in_layout, out_layout = args
+            if in_layout != out_layout:
+                args_list.append(args)
+
+        self._iterate_layout_transform(_fetch_args_callback)
+
+        def _log_to_list(record_list):
+            """Callback to log result to a list."""
+
+            def _callback(_, inputs, results):
+                """Callback implementation"""
+                record_list.append((inputs[0], results[0]))
+
+            return _callback
+
+        # measure_option = autotvm.measure_option(builder=builder, runner=runner)
+        for args in args_list:
+            data, in_layout, out_layout = args
+            ltf_workload = autotvm.task.args_to_workload(args, "layout_transform")
+            if ltf_workload in self._layout_transform_perf_records:
+                continue
+
+            if infer_layout:
+                input_shape = ltf_workload[1][1]
+                flops = 1
+                for i in input_shape:
+                    flops *= i
+
+                # Rule out invalid layout transformations
+                out = topi.layout_transform(data, in_layout, out_layout)
+                out_flops = 1
+                for i in topi.utils.get_const_tuple(out.shape):
+                    out_flops *= i
+
+                if flops != out_flops:
+                    inferred_time = INVALID_LAYOUT_TIME
+                else:
+                    inferred_time = flops * avg_time
+
+                record_input = MeasureInput(target=self._target, task=None, config=None)
+                record_output = MeasureResult(
+                    costs=(inferred_time,), error_no=0, all_cost=-1, timestamp=-1
+                )
+                self._layout_transform_perf_records[ltf_workload] = (record_input, record_output)
+                continue
+
+            records = []
+            task = autotvm.task.create(
+                "layout_transform", args=args, target=self._target, target_host=target_host
+            )
+            tuner = autotvm.tuner.GridSearchTuner(task)
+            tuner.tune(n_trial=1, measure_option=measure_option, callbacks=[_log_to_list(records)])
+            if not isinstance(records[0][1].costs[0], float):
+                records[0] = (records[0][0], records[0][1]._replace(costs=(INVALID_LAYOUT_TIME,)))
+            self._layout_transform_perf_records[ltf_workload] = records[0]
+
+        self._iterate_layout_transform(self._create_matrix_callback)
+        self._logger.info("Benchmarking layout transformation successful.")
+
+
     def benchmark_layout_transform(
         self,
         min_exec_num=100,

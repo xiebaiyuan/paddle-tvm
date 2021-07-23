@@ -22,10 +22,14 @@ const path = require("path");
 const fs = require("fs");
 const assert = require("assert");
 const tvmjs = require("../../dist");
+const execSync = require('child_process').execSync;
+
 
 const wasmPath = tvmjs.wasmPath();
 const EmccWASI = require(path.join(wasmPath, "tvmjs_runtime.wasi.js"));
-const wasmSource = fs.readFileSync(path.join(wasmPath, "test_addone.wasm"));
+
+const wasmBinaryPath = path.join(wasmPath, "test_addone.wasm")
+const wasmSource = fs.readFileSync(wasmBinaryPath);
 
 const tvm = new tvmjs.Instance(
   new WebAssembly.Module(wasmSource),

@@ -362,7 +362,7 @@ class TrackerSession(object):
         res += separate_line
         return res
 
-    def request(self, key, priority=1, session_timeout=0, max_retry=5):
+    def request(self, key, priority=1, session_timeout=0, max_retry=5, session_constructor_args=None):
         """Request a new connection from the tracker.
 
         Parameters
@@ -391,7 +391,8 @@ class TrackerSession(object):
                 if value[0] != base.TrackerCode.SUCCESS:
                     raise RuntimeError("Invalid return value %s" % str(value))
                 url, port, matchkey = value[1]
-                return connect(url, port, matchkey, session_timeout)
+                print("tracker request session_constructor_args", session_constructor_args);
+                return connect(url, port, matchkey, session_timeout, session_constructor_args)
             except socket.error as err:
                 self.close()
                 last_err = err
@@ -498,6 +499,7 @@ def connect(url, port, key="", session_timeout=0, session_constructor_args=None)
         session_constructor_args = session_constructor_args if session_constructor_args else []
         if not isinstance(session_constructor_args, (list, tuple)):
             raise TypeError("Expect the session constructor to be a list or tuple")
+        print("connect session_constructor_args", session_constructor_args);
         sess = _ffi_api.Connect(url, port, key, *session_constructor_args)
     except NameError:
         raise RuntimeError("Please compile with USE_RPC=1")

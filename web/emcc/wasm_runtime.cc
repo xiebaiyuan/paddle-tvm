@@ -51,6 +51,11 @@
 #include "src/runtime/rpc/rpc_session.cc"
 #include "src/runtime/system_library.cc"
 #include "src/runtime/workspace_pool.cc"
+// dyg add
+#include "src/runtime/graph/graph_runtime_factory.cc"
+// #include "src/runtime/rpc/rpc_server_env.cc"
+#include "src/runtime/contrib/random/random.cc"
+// dyg add end
 
 // --- Implementations of backend and wasm runtime API. ---
 
