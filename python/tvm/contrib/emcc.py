@@ -66,6 +66,7 @@ def create_tvmjs_wasm(output, objects, options=None, cc="emcc"):
     if options:
         cmd += options
 
+    print(cmd)
     proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
     (out, _) = proc.communicate()
 

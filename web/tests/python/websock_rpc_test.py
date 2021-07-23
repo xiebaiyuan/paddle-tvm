@@ -46,10 +46,14 @@ def test_rpc():
     temp = utils.tempdir()
 
     wasm_path = temp.relpath("addone.wasm")
+    print("output: " + wasm_path)
     fadd.export_library(wasm_path, emcc.create_tvmjs_wasm)
+
+    print("loading wasm file")
 
     wasm_binary = open(wasm_path, "rb").read()
 
+    print("connecting")
     remote = rpc.connect(
         proxy_host,
         proxy_port,
@@ -57,7 +61,10 @@ def test_rpc():
         session_constructor_args=["rpc.WasmSession", wasm_binary],
     )
 
+    print("connected")
+
     def check(remote):
+        print("in check")
         # basic function checks.
         faddone = remote.get_function("testing.asyncAddOne")
         fecho = remote.get_function("testing.echo")

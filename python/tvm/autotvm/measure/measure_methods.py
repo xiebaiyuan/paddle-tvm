@@ -38,7 +38,7 @@ import tvm._ffi
 import tvm.ir.transform
 from tvm import nd
 from tvm import rpc as _rpc
-from tvm.contrib import ndk, nvcc, stackvm, tar
+from tvm.contrib import ndk, nvcc, stackvm, tar, emcc
 from tvm.driver import build
 from tvm.error import TVMError
 from tvm.target import Target
@@ -95,6 +95,8 @@ class LocalBuilder(Builder):
                 build_func = ndk.create_shared
             elif build_func == "stackvm":
                 build_func = stackvm.build
+            elif build_func == "wasm":
+                build_func = emcc.create_tvmjs_wasm
             else:
                 raise ValueError("Invalid build_func" + build_func)
         self.build_func = _WrappedBuildFunc(build_func)
@@ -106,6 +108,10 @@ class LocalBuilder(Builder):
 
         shutil.rmtree(self.tmp_dir, ignore_errors=True)
         self.tmp_dir = tempfile.mkdtemp()
+
+        #print("============== LocalBuilder build measure_inputs BEGIN ===========")
+        #print(measure_inputs)
+        #print("============== LocalBuilder build measure_inputs END ===========")
 
         for i in range(0, len(measure_inputs), self.n_parallel):
             futures = []
@@ -465,6 +471,10 @@ def _build_func_common(measure_input, check_gpu=None, cuda_arch=None, build_opti
             func = vta.build(s, args, target_host=task.target_host)
         else:
             with tvm.ir.transform.PassContext(config=opts):
+                # print("================= tvm.ir.transform.PassContext BEGIN =================")
+                # print(args)
+                # print(s)
+                # print("================= tvm.ir.transform.PassContext  END =================")
                 func = build(s, args, target_host=task.target_host)
     return func, tuple((get_const_tuple(x.shape), x.dtype) for x in args)
 
@@ -511,6 +521,12 @@ class _WrappedBuildFunc:
             )
             # TODO(tvm-team) consider linline _build_func_common
             func, arg_info = _build_func_common(measure_input, **kwargs)
+            # print("=========== _build_func_common BEGIN ===========")
+            # print(func)
+            # print(arg_info)
+            # print(measure_input)
+            # print(**kwargs)
+            # print("=========== _build_func_common END ===========")
             func.export_library(filename, self.build_func)
         except Exception as e:  # pylint: disable=broad-except
             return BuildResult(None, None, e, time.time() - tic)
@@ -579,9 +595,12 @@ def run_through_rpc(
     tic = time.time()
     errno = MeasureErrorNo.NO_ERROR
     try:
+        print("================ module loader ")
         # upload built module
         with module_loader(remote_kwargs, build_result) as (remote, mod):
             dev = remote.device(str(measure_input.target), 0)
+
+            print("================ module loader inner")
 
             # Limitation:
             # We can not get PackFunction directly in the remote mode as it is wrapped
@@ -594,8 +613,8 @@ def run_through_rpc(
                 dev,
                 number=number,
                 repeat=repeat,
-                min_repeat_ms=min_repeat_ms,
-                f_preproc=f_prepare,
+                # min_repeat_ms=min_repeat_ms,
+                # f_preproc=f_prepare,
             )
 
             if ref_input:
@@ -616,6 +635,46 @@ def run_through_rpc(
                 dev.sync()
 
             costs = time_f(*args).results
+            # comment dyg codes.. to be tested
+            # try:
+            #     random_fill = remote.get_function("tvm.contrib.random.random_fill")
+            # except AttributeError:
+            #     raise AttributeError(
+            #         "Please make sure USE_RANDOM is ON in the config.cmake " "on the remote devices"
+            #     )
+            # # args = [nd.array(np.zeros(x[0], dtype=x[1]), ctx=ctx) for x in build_result.arg_info]
+            # args = [nd.array(np.ones(x[0], dtype=x[1]), ctx=ctx) for x in build_result.arg_info]
+            #
+            # args2 = [nd.array(np.ones(x[0], dtype=x[1]), ctx=ctx) for x in build_result.arg_info]
+            # for x in build_result.arg_info:
+            #     if (x[1] != "float32"):
+            #         print("Not support none flaot32 type in random ddyygg")
+            #         raise AttributeError(
+            # #             "Not support none flaot32 type in random ddyygg"
+            #         )
+            #
+            # print("=========== task.name ========== ", measure_input.task.name)
+            # if "scatter" not in measure_input.task.name:
+            #     i = 0
+            #     for x in build_result.arg_info:
+            #         shape = x[0]
+            #         total_size = 1
+            #         for dim in shape:
+            #             total_size = total_size * dim
+            #
+            #         tmp =  np.random.uniform(size = total_size).astype(x[1])
+            #         try:
+            #             data = np.reshape(tmp, (shape))
+            #         except ValueError as e:
+            #             print("======= ERROR =======", e)
+            #
+            #         args[i] = tvm.nd.array(data, ctx=ctx)
+            #         i = i + 1
+            # ctx.sync()
+            # res = time_f(*args)
+            # costs = res.results
+            # print(res.mean)
+            # print("================ pre result end ")
 
         if len(costs) > 2:  # remove largest and smallest value to reduce variance
             costs = list(costs)
@@ -629,6 +688,7 @@ def run_through_rpc(
             msg = msg[: msg.index("CUDA Source")]
         costs = (RuntimeError(msg[:1024]),)
         errno = MeasureErrorNo.RUNTIME_DEVICE
+        print(msg)
     tstamp = time.time()
     time.sleep(cooldown_interval)
     return MeasureResult(costs, errno, tstamp - tic + build_result.time_cost, tstamp)

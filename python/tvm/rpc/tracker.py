@@ -182,6 +182,7 @@ class TCPEventHandler(tornado_util.TCPHandler):
         return self._info
 
     def _init_conn(self, message):
+        logger.info("_init_conn %s", message)
         """Initialize the connection"""
         if len(message) != 4:
             logger.warning("Invalid connection from %s", self.name())
@@ -233,9 +234,11 @@ class TCPEventHandler(tornado_util.TCPHandler):
         """Event handler when json request arrives."""
         code = args[0]
         if code == TrackerCode.PUT:
+            logger.info("tracker receive put message %s", args)
             key = args[1]
             port, matchkey = args[2]
             self.pending_matchkeys.add(matchkey)
+            logger.info("tracker pending_matchkeys add matchkey %s", self.pending_matchkeys)
             # got custom address (from rpc server)
             if len(args) >= 4 and args[3] is not None:
                 value = (self, args[3], port, matchkey)
@@ -245,6 +248,7 @@ class TCPEventHandler(tornado_util.TCPHandler):
             self.put_values.append(value)
             self.ret_value(TrackerCode.SUCCESS)
         elif code == TrackerCode.REQUEST:
+            logger.info("tracker receive request message %s", args)
             key = args[1]
             user = args[2]
             priority = args[3]
@@ -272,6 +276,8 @@ class TCPEventHandler(tornado_util.TCPHandler):
             else:
                 self.ret_value(TrackerCode.FAIL)
         elif code == TrackerCode.UPDATE_INFO:
+
+            logger.info("tracker receive UPDATE_INFO %s", args)
             info = args[1]
             assert isinstance(info, dict)
             if info["addr"][0] is None:
@@ -335,6 +341,7 @@ class TrackerServerHandler(object):
         self._scheduler_map[key].request(user, priority, callback)
 
     def close(self, conn):
+        logger.info("TrackerServerHandler close %s", conn);
         self._connections.remove(conn)
         if "key" in conn._info:
             key = conn._info["key"].split(":")[1]  # 'server:rasp3b' -> 'rasp3b'
