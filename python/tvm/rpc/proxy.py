@@ -369,10 +369,12 @@ class ProxyServerHandler(object):
             # report new connections
             for key in self._tracker_pending_puts:
                 rpc_key = key.split(":")[0]
+                logging.info("_update_tracker: sendjson rpc_key = %s", rpc_key);
                 base.sendjson(
                     self._tracker_conn, [TrackerCode.PUT, rpc_key, (self._listen_port, key), None]
                 )
                 assert base.recvjson(self._tracker_conn) == TrackerCode.SUCCESS
+                logging.info("_update_tracker: recvjson succeed = %s", rpc_key);
                 if rpc_key not in self._key_set:
                     self._key_set.add(rpc_key)
                     need_update_info = True
@@ -401,12 +403,16 @@ class ProxyServerHandler(object):
             self.loop.call_later(self.update_tracker_period, _callback)
 
     def _handler_ready_tracker_mode(self, handler):
+        logging.info("_handler_ready_tracker_mode rpc_key = %s handler = %s", handler.rpc_key, handler)
+        logging.info("_handler_ready_tracker_mode server pool = %s", self._server_pool)
+        
         """tracker mode to handle handler ready."""
         if handler.rpc_key.startswith("server:"):
             key = base.random_key(handler.match_key + ":", self._server_pool)
             handler.match_key = key
             self._server_pool[key] = handler
             self._tracker_pending_puts.append(key)
+            logging.info("_handler_ready_tracker_mode rpc_key = %s, match_key = %s", handler.rpc_key, handler.match_key)
             self._update_tracker()
         else:
             if handler.match_key in self._server_pool:
@@ -417,6 +423,8 @@ class ProxyServerHandler(object):
 
     def _handler_ready_proxy_mode(self, handler):
         """Normal proxy mode when handler is ready."""
+        logging.info("_handler_ready_proxy_mode rpc_key = %s, match_key = %s", handler.rpc_key, handler.match_key)
+
         if handler.rpc_key.startswith("server:"):
             pool_src, pool_dst = self._client_pool, self._server_pool
             timeout = self.timeout_server
@@ -424,6 +432,7 @@ class ProxyServerHandler(object):
             pool_src, pool_dst = self._server_pool, self._client_pool
             timeout = self.timeout_client
 
+        logging.info("_handler_ready_proxy_mode pool_src = %s, pool_dst = %s timeout = %s", pool_src, pool_dst, timeout)
         key = handler.match_key
         if key in pool_src:
             self._pair_up(pool_src.pop(key), handler)

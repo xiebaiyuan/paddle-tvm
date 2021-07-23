@@ -1092,8 +1092,58 @@ export class Instance implements Disposable {
       return x + 1;
     };
 
+    // const upload = (path: string, buffer:ArrayBuffer): Promise<string> => {
+    //   await new Promise(resolve => setTimeout(resolve, 100));
+    //   return path;
+    // };
+
     this.registerAsyncServerFunc("wasm.TimeExecution", timeExecution);
     this.registerAsyncServerFunc("testing.asyncAddOne", addOne);
+
+    this.registerAsyncServerFunc("tvm.rpc.server.load_module",
+      async (_args: unknown): Promise<GraphRuntime> =>  {
+        console.log(_args)
+        console.log("tvm.rpc.server.load_module called")
+
+        const network = "mobilenet"
+        const graphJson = await (await fetch("./" + network + ".json")).text();
+        // const synset = await (await fetch("./imagenet1k_synset.json")).json();
+        const paramsBinary = new Uint8Array(
+          await (await fetch("./" + network + ".params")).arrayBuffer()
+        );
+
+        var ctx = this.cpu(0);
+        const syslib = this.systemLib();
+        const executor = this.createGraphRuntime(graphJson, syslib, ctx);
+        executor.loadParams(paramsBinary);
+        console.log("tvm.rpc.server.load_module returned")
+        console.log(executor)
+        return executor;
+      }
+    );
+
+    this.registerFunc(
+      "tvm.rpc.server.remove",
+      (_args: unknown): void => {
+        console.log(_args)
+        console.log("tvm.rpc.server.remove called")
+      }
+    );
+
+    this.registerFunc(
+      "tvm.contrib.random.random_fill",
+      (_args: NDArray): void => {
+        console.log(_args)
+        console.log("tvm.contrib.random.random_fill called")
+        var data = new Float32Array(_args.shape)
+        data[0] = 0.0;
+        data[1] = 0.5;
+        _args.copyFrom(data);
+        // tvm.nd.array(np.random.uniform(size=n).astype("float32"), ctx)
+      }
+    );
+
+    
   }
 
   private createPackedFuncFromCFunc(
@@ -1362,6 +1412,7 @@ export function instantiate(
 
   return WebAssembly.instantiate(bufferSource, env.imports).then(
     (result: WebAssembly.WebAssemblyInstantiatedSource): Instance => {
+      console.log("Creating new web assembly runtime")
       return new Instance(result.module, {}, result.instance, env);
     }
   );

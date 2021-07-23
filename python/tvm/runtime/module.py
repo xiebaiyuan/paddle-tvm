@@ -399,6 +399,9 @@ class Module(object):
             opts = options + ["-I" + path for path in find_include_path()]
             kwargs.update({"options": opts})
 
+        # print("============= fcompile object ===========")
+        # print(files)
+        # print("============= fcompile object end ===========")
         return fcompile(file_name, files, **kwargs)
 
 
