@@ -1101,7 +1101,7 @@ export class Instance implements Disposable {
     this.registerAsyncServerFunc("testing.asyncAddOne", addOne);
 
     this.registerAsyncServerFunc("tvm.rpc.server.load_module",
-      async (_args: unknown): Promise<GraphRuntime> =>  {
+      async (_args: unknown): Promise<GraphExecutor> => {
         console.log(_args)
         console.log("tvm.rpc.server.load_module called")
 
@@ -1114,7 +1114,7 @@ export class Instance implements Disposable {
 
         var ctx = this.cpu(0);
         const syslib = this.systemLib();
-        const executor = this.createGraphRuntime(graphJson, syslib, ctx);
+        const executor = this.createGraphExecutor(graphJson, syslib, ctx);
         executor.loadParams(paramsBinary);
         console.log("tvm.rpc.server.load_module returned")
         console.log(executor)
