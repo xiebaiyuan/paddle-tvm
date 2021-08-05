@@ -28,16 +28,31 @@ const execSync = require('child_process').execSync;
 const wasmPath = tvmjs.wasmPath();
 const EmccWASI = require(path.join(wasmPath, "tvmjs_runtime.wasi.js"));
 
-const wasmBinaryPath = path.join(wasmPath, "test_addone.wasm")
+const wasmBinaryPath = path.join(wasmPath, "mobilenet.wasm");
 const wasmSource = fs.readFileSync(wasmBinaryPath);
 
-const tvm = new tvmjs.Instance(
-  new WebAssembly.Module(wasmSource),
-  new EmccWASI()
-);
+tvmjs.instantiate(wasmSource, new EmccWASI())
+.then((tvm) => {
+    // List all the global functions from the runtime.
+    console.log("Runtime functions using EmccWASI\n", tvm.listGlobalFuncNames());
 
-// Load system library
-const sysLib = tvm.systemLib();
+    const sysLib = tvm.systemLib();
+    console.log(sysLib)
+
+    console.log('==================')
+
+    console.log(tvm.createGraphRuntime)
+    // const faddOne = sysLib.getFunction("build_testing_model");
+});
+
+// console.log("pre syslib")
+// const test = tvm.listGlobalFuncNames()
+// console.log(test)
+
+// // Load system library
+// const sysLib = tvm.systemLib();
+
+// console.log("syslib")
 
 function randomArray(length, max) {
   return Array.apply(null, Array(length)).map(function () {
@@ -45,20 +60,20 @@ function randomArray(length, max) {
   });
 }
 
-test("add one", () => {
-  // grab pre-loaded function
-  const faddOne = sysLib.getFunction("add_one");
-  assert(tvm.isPackedFunc(faddOne));
-  const n = 124;
-  const A = tvm.empty(n).copyFrom(randomArray(n, 1));
-  const B = tvm.empty(n);
-  // call the function.
-  faddOne(A, B);
-  const AA = A.toArray(); // retrieve values in js array
-  const BB = B.toArray(); // retrieve values in js array
-  // verify
-  for (var i = 0; i < BB.length; ++i) {
-    assert(Math.abs(BB[i] - (AA[i] + 1)) < 1e-5);
-  }
-  faddOne.dispose();
-});
+// test("run build_testing_model", () => {
+//   // grab pre-loaded function
+//   // const faddOne = sysLib.getFunction("build_testing_model");
+//   // assert(tvm.isPackedFunc(faddOne));
+//   // const n = 124;
+//   // const A = tvm.empty(n).copyFrom(randomArray(n, 1));
+//   // const B = tvm.empty(n);
+//   // // call the function.
+//   // faddOne(A, B);
+//   // const AA = A.toArray(); // retrieve values in js array
+//   // const BB = B.toArray(); // retrieve values in js array
+//   // // verify
+//   // for (var i = 0; i < BB.length; ++i) {
+//   //   assert(Math.abs(BB[i] - (AA[i] + 1)) < 1e-5);
+//   // }
+//   // faddOne.dispose();
+// });

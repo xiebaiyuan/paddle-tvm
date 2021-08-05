@@ -90,18 +90,24 @@ export class RPCServer {
   private pendingBytes = 0;
   private buffredBytes = 0;
   private messageQueue: Array<Uint8Array> = [];
+  private initialBuffer: any;
+  private restartCallback: any;
 
   constructor(
     url: string,
     key: string,
     getImports: () => Record<string, unknown>,
-    logger: (msg: string) => void = console.log
+    logger: (msg: string) => void = console.log,
+    initialBuffer: any,
+    restartCallback: any,
   ) {
     this.url = url;
     this.key = key;
     this.name = "WebSocketRPCServer[" + this.key + "]: ";
     this.getImports = getImports;
     this.logger = logger;
+    this.initialBuffer = initialBuffer;
+    this.restartCallback = restartCallback;
 
     this.checkLittleEndian();
     this.socket = compact.createWebSocket(url);
@@ -114,6 +120,7 @@ export class RPCServer {
       return this.onMessage(event);
     });
     this.socket.addEventListener("close", (event: CloseEvent) => {
+      console.log('websocket 断开: ' + event.code + ' ' + event.reason + ' ' + event.wasClean)
       return this.onClose(event);
     });
   }
@@ -122,11 +129,16 @@ export class RPCServer {
   private onClose(_event: CloseEvent): void {
     if (this.inst !== undefined) {
       this.inst.dispose();
+      this.inst = undefined;
+      this.initialBuffer = null;
     }
     if (this.state == RPCServerState.ReceivePacketHeader) {
       this.log("Closing the server in clean state");
       this.log("Automatic reconnecting..");
-      new RPCServer(this.url, this.key, this.getImports, this.logger);
+      fetch('turning.wasm').then(response => response.arrayBuffer()).then(buffer => {
+        console.log("loading turning.wasm succeed")
+        new RPCServer(this.url, this.key, this.getImports, this.logger, buffer, this.restartCallback);
+      })
     } else {
       this.log("Closing the server, final state=" + this.state);
     }
@@ -222,7 +234,8 @@ export class RPCServer {
         } else if (tcode == ArgTypeCode.TVMBytes) {
           args.push(reader.readByteArray());
         } else {
-          throw new Error("cannot support type code " + tcode);
+          //throw new Error("cannot support type code " + tcode);
+
         }
       }
       this.onInitServer(args, header, body);
@@ -241,13 +254,15 @@ export class RPCServer {
     body: Uint8Array
   ): void {
     // start the server
-    assert(args[0] == "rpc.WasmSession");
+    console.log(args)
+    // assert(args[0] == "rpc.WasmSession");
     assert(this.pendingBytes == 0);
 
     const asyncInitServer = async (): Promise<void> => {
-      assert(args[1] instanceof Uint8Array);
-      const inst = await runtime.instantiate(
-        args[1].buffer,
+      // assert(args[1] instanceof Uint8Array);
+      var inst = await runtime.instantiate(
+        // args[1].buffer,
+        this.initialBuffer,
         this.getImports(),
         this.logger
       );
@@ -262,6 +277,7 @@ export class RPCServer {
         this.log("Cannnot initialize WebGPU, " + err.toString());
       }
 
+      console.log(inst);
       this.inst = inst;
       const fcreate = this.inst.getGlobalFunc("rpc.CreateEventDrivenServer");
 
@@ -328,9 +344,13 @@ export class RPCServer {
         "rpc.WasmSession",
         // eslint-disable-next-line @typescript-eslint/no-unused-vars
         (_args: unknown): runtime.Module => {
+          console.log("rpc.wasmsession called")
           return localSession;
         }
       );
+
+      this.initGlobalFunction(this.inst);
+
       messageHandler(header, writeFlag);
       messageHandler(body, writeFlag);
       localSession.dispose();
@@ -345,6 +365,54 @@ export class RPCServer {
     this.state = RPCServerState.WaitForCallback;
     asyncInitServer();
   }
+
+  private initGlobalFunction (instance: any) {
+    instance.registerFunc(
+      "tvm.rpc.server.upload",
+      (filenmae: unknown, databuffer: unknown): void => {
+        console.log(filenmae)
+        console.log(databuffer)
+        console.log("tvm.rpc.server.upload called in rpc server")
+
+        this.initialBuffer = databuffer;
+
+        this.restartCallback(filenmae);
+      }
+    );
+
+    // instance.registerFunc(
+    //   "tvm.rpc.server.remove",
+    //   (_args: unknown): void => {
+    //     console.log(_args)
+    //     console.log("tvm.rpc.server.remove called")
+    //   }
+    // );
+
+    // instance.registerFunc(
+    //   "tvm.rpc.server.load_module",
+    //   (_args: unknown): void => {
+    //     console.log(_args)
+    //     console.log("tvm.rpc.server.load_module called")
+    //   }
+    // );
+
+    // instance.registerFunc(
+    //   "tvm.rpc.server.remove",
+    //   (_args: unknown): void => {
+    //     console.log(_args)
+    //     console.log("tvm.rpc.server.remove called")
+    //   }
+    // );
+  }
+
+  private printCallStack() {
+    var i = 0;
+    var fun = arguments.callee;
+      do {
+        fun = fun.arguments.callee.caller;
+        console.log(++i + ': ' + fun);
+      } while (fun);
+    }
 
   private log(msg: string): void {
     this.logger(this.name + msg);
