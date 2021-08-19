@@ -125,6 +125,7 @@ export class RPCServer {
     });
   }
 
+
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   private onClose(_event: CloseEvent): void {
     if (this.inst !== undefined) {
@@ -135,7 +136,7 @@ export class RPCServer {
     if (this.state == RPCServerState.ReceivePacketHeader) {
       this.log("Closing the server in clean state");
       this.log("Automatic reconnecting..");
-      fetch('turning.wasm').then(response => response.arrayBuffer()).then(buffer => {
+      fetch('tuning.wasm').then(response => response.arrayBuffer()).then(buffer => {
         console.log("loading turning.wasm succeed")
         new RPCServer(this.url, this.key, this.getImports, this.logger, buffer, this.restartCallback);
       })
@@ -233,9 +234,11 @@ export class RPCServer {
           args.push(str);
         } else if (tcode == ArgTypeCode.TVMBytes) {
           args.push(reader.readByteArray());
-        } else {
-          //throw new Error("cannot support type code " + tcode);
-
+        } else if (tcode == ArgTypeCode.Int) {
+          // fixme this will receive code 0 ; how to handle?
+          console.log("receive tcode 0");
+        }else {
+           throw new Error("cannot support type code " + tcode);
         }
       }
       this.onInitServer(args, header, body);
@@ -254,6 +257,7 @@ export class RPCServer {
     body: Uint8Array
   ): void {
     // start the server
+    console.log("rpc_server :: onInitServer ====>")
     console.log(args)
     // assert(args[0] == "rpc.WasmSession");
     assert(this.pendingBytes == 0);
@@ -379,7 +383,8 @@ export class RPCServer {
         this.restartCallback(filenmae);
       }
     );
-
+     
+    // already register?
     // instance.registerFunc(
     //   "tvm.rpc.server.remove",
     //   (_args: unknown): void => {

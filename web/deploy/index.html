@@ -1,0 +1,179 @@
+<html>
+  <head>
+    <title>TVM WebAssembly Demo</title>
+  </head>
+  <script src="tvmjs_runtime.wasi.js"></script>
+  <script src="tvmjs.bundle.js"></script>
+  <script>
+    function customLog(message) {
+      console.log(message);
+      const d = document.createElement("div");
+      d.innerHTML = message;
+      document.getElementById("log").appendChild(d);
+    }
+
+    function preprocImage(imageData) {
+      const width = 64;
+      const height = 64;
+      const npixels = width * height;
+      const data = new Float32Array(npixels * 3);
+      for (let i = 0; i < data.length; ++i) {
+        data[i] = 1;
+      }
+      return data;
+    }
+
+    // Asynchrously load an image.
+    function loadImage(uri) {
+      return new Promise((resolve, reject) => {
+        const image = new Image();
+        image.src = uri;
+        image.setAttribute("crossOrigin", "anonymous");
+        image.onload = () => resolve(image);
+        image.onerror = reject;
+      });
+    }
+    // global classifier object
+    classifier = {};
+
+    // initialize the classifier.
+    async function initModel(network, logger) {
+      const wasmSource = await (
+        await fetch("./" + network + ".wasm")
+      ).arrayBuffer();
+      const inst = await tvmjs.instantiate(
+        new Uint8Array(wasmSource),
+        new EmccWASI(),
+        logger
+      );
+      
+      const graphJson = await (await fetch("./" + network + ".json")).text();
+      const paramsBinary = new Uint8Array(
+        await (await fetch("./" + network + ".params")).arrayBuffer()
+      );
+      logger("Start to intialize the classifier with WebGPU...");
+      ctx = inst.cpu(0);
+      const syslib = inst.systemLib();
+      const executor = inst.createGraphExecutor(graphJson, syslib, ctx);
+      executor.loadParams(paramsBinary);
+      const inputData = inst.empty([1, 3, 64, 64], "float32", inst.cpu());
+      const outputData0 = inst.empty([1, 300], "float32", inst.cpu());
+      const outputData1 = inst.empty([1, 2], "float32", inst.cpu());
+
+      const output0 = executor.getOutput(0);
+      const output1 = executor.getOutput(1);
+      // run the first time to make sure all weights are populated.
+      executor.run();
+      await ctx.sync();
+      logger("Finish initializing the classifier with Web Assembly support");
+
+      // the classify function
+      classifier.classify = async () => {
+        const processedImage = preprocImage();
+        // classify the image.
+        const tStart = performance.now();
+        inputData.copyFrom(processedImage);
+        executor.setInput("image", inputData);
+        console.log('input data');
+        console.log(inputData.toArray());
+        executor.run();
+        console.log("output result")
+        console.log(output0.toArray())
+        console.log(output1.toArray())
+        // outputData.copyFrom(outputGPU);
+        // need t sync before the data is avaialble.
+        await ctx.sync();
+        const tOnCopyCmplete = performance.now();
+        const standAloneRuns = await executor.benchmarkRuns(ctx, 1, 10);
+        const stats = Array.from(standAloneRuns).map(value => value.toFixed(2));
+        // report the result.
+        const sortedIndex = Array.from(outputData0.toArray())
+          .map((value, index) => [value, index])
+          .sort(([a], [b]) => b - a)
+          .map(([, index]) => index);
+        clearLog();
+        // if (typeof inst.lib.webGPUContext.device.defaultQueue.createFence  == "undefined") {
+        //   logger("WARNING: createFence is not supported, timing will be inaccurate.");
+        // }
+        calResult(standAloneRuns, logger);
+        logger("diff of first is "+(output0.toArray()[0] - 15.542109))
+        logger(
+          "Time cost(ms): end to end=" +
+            (tOnCopyCmplete - tStart).toFixed(2) +
+            ", GPU run benchmarks=" + stats.join(", ")
+        );
+      };
+    }
+
+    function calResult(dataArr, logger) {
+      if (dataArr.length == 0) {
+        return;
+      }
+      var min = 9999999999;
+      var max = -1
+      var total = 0;
+      for (let i = 0; i < dataArr.length; ++i) {
+        let cost = dataArr[i];
+        if (cost < min) {
+          min = cost
+        }
+
+        if (cost > max) {
+          max = cost
+        }
+
+        total += cost
+      }
+
+      logger("Min: " + min);
+      logger("Max: " + max);
+      logger("Mean: " + (total / dataArr.length));
+    }
+
+    async function classify() {
+      while (classifier.classify === undefined) {
+        await new Promise((r) => setTimeout(r, 10));
+      }
+      classifier.classify();
+    }
+    function clearLog() {
+      const node = document.getElementById("log");
+      while (node.hasChildNodes()) {
+        node.removeChild(node.lastChild);
+      }
+    }
+
+    initModel("lmk", customLog);
+  </script>
+  <body>
+    <h1>TVM WebAssembly Demo</h1>
+    <ul>
+      <li>
+        You need a browser with web assembly capability.
+        Checkout instructions <a href="https://github.com/gpuweb/gpuweb/wiki/Implementation-Status">here</a> Tested on Chrome Canary
+      </li>
+      <li>End to end time cost includes data copy from/to the GPU.</li>
+      <li>GPU run benchmarks only invoke compute without data copy.
+        We can get a sense of copy overhead by comparing benchmark runs to the end to end timing.
+      </li>
+      <li>Try to click classify multiple times,
+        you will notice that the classifier becomes faster.
+        This could due to GPU driver execution stablizes.
+        The stablized GPU cost helps us to know what is the best performance
+        we can get if we run the model continuously(e.g. in an always on detetcor demo).
+      </li>
+    </ul>
+    <h2>Options</h2>
+    Image URL<input
+      name="imageURL"
+      id="imageURL"
+      type="text"
+      value="./cat.png"
+    /><br /><br />
+    <button onclick="classify()">Classify</button>
+    <button onclick="clearLog()">Clear Log</button><br />
+    <canvas id="canvas" width="224" height="224"></canvas>
+    <div id="result"></div>
+    <div id="log"></div>
+  </body>
+</html>

@@ -27,6 +27,7 @@ from ..utils import format_si_prefix
 from ..env import GLOBAL_SCOPE
 
 logger = logging.getLogger("autotvm")
+logger.setLevel(logging.DEBUG)
 
 
 class Tuner(object):
@@ -109,6 +110,7 @@ class Tuner(object):
         si_prefix: str
             One of tvm.autotvm.utils.SI_PREFIXES. The SI prefix to use when reporting FLOPS.
         """
+        print("|||||| ====>>>!!!!  tunner . tune -==--- ")
         measure_batch = create_measure_batch(self.task, measure_option)
         n_parallel = getattr(measure_batch, "n_parallel", 1)
         early_stopping = early_stopping or 1e9

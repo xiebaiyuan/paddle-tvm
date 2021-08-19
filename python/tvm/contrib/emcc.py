@@ -38,6 +38,8 @@ def create_tvmjs_wasm(output, objects, options=None, cc="emcc"):
     cc : str, optional
         The compile string.
     """
+    print("create_tvmjs_wasm ==>  ")
+
     cmd = [cc]
     cmd += ["-O3"]
 

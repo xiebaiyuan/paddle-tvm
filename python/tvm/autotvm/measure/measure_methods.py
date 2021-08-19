@@ -89,6 +89,7 @@ class LocalBuilder(Builder):
         super(LocalBuilder, self).__init__(timeout, n_parallel)
 
         if isinstance(build_func, str):
+            print("measure_methods init with build_func : " + build_func);
             if build_func == "default":
                 build_func = tar.tar
             elif build_func == "ndk":
@@ -104,14 +105,16 @@ class LocalBuilder(Builder):
         self.tmp_dir = tempfile.mkdtemp()
 
     def build(self, measure_inputs):
+        print("============== Build Start ===========");
+
         results = []
 
         shutil.rmtree(self.tmp_dir, ignore_errors=True)
         self.tmp_dir = tempfile.mkdtemp()
 
-        #print("============== LocalBuilder build measure_inputs BEGIN ===========")
-        #print(measure_inputs)
-        #print("============== LocalBuilder build measure_inputs END ===========")
+        print("============== LocalBuilder build measure_inputs BEGIN ===========")
+        print(measure_inputs)
+        print("============== LocalBuilder build measure_inputs END ===========")
 
         for i in range(0, len(measure_inputs), self.n_parallel):
             futures = []
@@ -167,7 +170,8 @@ class LocalBuilder(Builder):
                 else:
                     # return BuildResult
                     results.append(res)
-
+        print("return results ===> " + str(results))
+        print("============== Build END ===========");
         return results
 
 
@@ -271,9 +275,9 @@ class RPCRunner(Runner):
 
     def set_task(self, task):
         self.task = task
-
+        logger.info("check_remote start")
         if check_remote(task.target, self.key, self.host, self.port):
-            logger.info("Get devices for measurement successfully!")
+            logger.info("Get devices for measurement successfully!!")
         else:
             raise RuntimeError(
                 "Cannot get remote devices from the tracker. "
@@ -425,17 +429,19 @@ class LocalRunner(RPCRunner):
         from ...rpc.tracker import Tracker
 
         self.task = task
-        tracker = Tracker(port=9000, port_end=10000, silent=True)
+        tracker = Tracker("0.0.0.0", port=9000, port_end=10000, silent=True)
         device_key = "$local$device$%d" % tracker.port
         server = Server(
+            "0.0.0.0",
             port=9000,
             port_end=10000,
             key=device_key,
+            use_popen=True,
             silent=True,
-            tracker_addr=("127.0.0.1", tracker.port),
+            tracker_addr=(tracker.host, tracker.port),
         )
         self.key = device_key
-        self.host = "127.0.0.1"
+        self.host = tracker.host
         self.port = tracker.port
 
         super(LocalRunner, self).set_task(task)
@@ -446,7 +452,7 @@ def _build_func_common(measure_input, check_gpu=None, cuda_arch=None, build_opti
     """Common part for building a configuration"""
     target, task, config = measure_input
     target, task.target_host = Target.check_and_update_host_consist(target, task.target_host)
-
+    print("target "+str(target));
     with target:
         s, args = task.instantiate(config)
 
@@ -471,10 +477,10 @@ def _build_func_common(measure_input, check_gpu=None, cuda_arch=None, build_opti
             func = vta.build(s, args, target_host=task.target_host)
         else:
             with tvm.ir.transform.PassContext(config=opts):
-                # print("================= tvm.ir.transform.PassContext BEGIN =================")
-                # print(args)
-                # print(s)
-                # print("================= tvm.ir.transform.PassContext  END =================")
+                print("================= tvm.ir.transform.PassContext BEGIN =================")
+                print(args)
+                print(s)
+                print("================= tvm.ir.transform.PassContext  END =================")
                 func = build(s, args, target_host=task.target_host)
     return func, tuple((get_const_tuple(x.shape), x.dtype) for x in args)
 
@@ -501,6 +507,7 @@ class _WrappedBuildFunc:
         if not hasattr(build_func, "output_format"):
             raise AttributeError("Expect build_func to have the attribute output_format.")
         self.build_func = build_func
+        print("====> _WrappedBuildFunc ++++ INIT")
 
     def __call__(self, measure_input, tmp_dir, **kwargs):
         """
@@ -514,6 +521,8 @@ class _WrappedBuildFunc:
         tmp_dir: str
             The path of temporary directory to export generated library
         """
+        print("====> _WrappedBuildFunc ++++ __call__")
+
         tic = time.time()
         try:
             filename = os.path.join(
@@ -521,12 +530,12 @@ class _WrappedBuildFunc:
             )
             # TODO(tvm-team) consider linline _build_func_common
             func, arg_info = _build_func_common(measure_input, **kwargs)
-            # print("=========== _build_func_common BEGIN ===========")
-            # print(func)
-            # print(arg_info)
-            # print(measure_input)
-            # print(**kwargs)
-            # print("=========== _build_func_common END ===========")
+            print("=========== _build_func_common BEGIN ===========")
+            print(func)
+            print(arg_info)
+            print(measure_input)
+            print(**kwargs)
+            print("=========== _build_func_common END ===========")
             func.export_library(filename, self.build_func)
         except Exception as e:  # pylint: disable=broad-except
             return BuildResult(None, None, e, time.time() - tic)
@@ -595,12 +604,12 @@ def run_through_rpc(
     tic = time.time()
     errno = MeasureErrorNo.NO_ERROR
     try:
-        print("================ module loader ")
+        # print("================ module loader ")
         # upload built module
         with module_loader(remote_kwargs, build_result) as (remote, mod):
             dev = remote.device(str(measure_input.target), 0)
 
-            print("================ module loader inner")
+            print("================ with module_loader ===================")
 
             # Limitation:
             # We can not get PackFunction directly in the remote mode as it is wrapped
@@ -635,6 +644,8 @@ def run_through_rpc(
                 dev.sync()
 
             costs = time_f(*args).results
+            # print("costs ===> "+str(costs));
+            print("comment dyg codes here!!")
             # comment dyg codes.. to be tested
             # try:
             #     random_fill = remote.get_function("tvm.contrib.random.random_fill")
@@ -680,7 +691,9 @@ def run_through_rpc(
             costs = list(costs)
             costs.sort()
             costs = tuple(costs[1:-1])
+        # print("!!! module_loader before exception ");
     except TVMError as exc:
+        print("GOT TVM ERROR as exc ====>")
         msg = str(exc)
         if "Stack trace returned" in msg:
             msg = msg[: msg.index("Stack trace returned")]
@@ -691,6 +704,9 @@ def run_through_rpc(
         print(msg)
     tstamp = time.time()
     time.sleep(cooldown_interval)
+    
+    print("run_through_rpc exc costs: "+str(costs))
+
     return MeasureResult(costs, errno, tstamp - tic + build_result.time_cost, tstamp)
 
 

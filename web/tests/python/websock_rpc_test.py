@@ -34,6 +34,7 @@ def test_rpc():
     if not tvm.runtime.enabled("rpc"):
         return
     # generate the wasm library
+    # wasm target define. 
     target = "llvm -mtriple=wasm32-unknown-unknown-wasm -system-lib"
     if not tvm.runtime.enabled(target):
         raise RuntimeError("Target %s is not enbaled" % target)

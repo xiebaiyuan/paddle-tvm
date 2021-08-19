@@ -22,7 +22,7 @@ import os
 from tvm.rpc.proxy import Proxy
 
 
-def find_example_resource():
+def  find_example_resource():
     """Find resource examples."""
     curr_path = os.path.dirname(os.path.realpath(os.path.expanduser(__file__)))
     base_path = os.path.abspath(os.path.join(curr_path, "..", "..", ".."))
@@ -32,11 +32,14 @@ def find_example_resource():
     resource_files = [
         os.path.join(base_path, "web", "dist", "tvmjs.bundle.js"),
         os.path.join(base_path, "web", "dist", "wasm", "tvmjs_runtime.wasi.js"),
-        # os.path.join(base_path, "web", "dist", "wasm", "module.json"), # dyg adds
+         # os.path.join(base_path, "web", "dist", "wasm", "module.json"), # dyg adds
         # os.path.join(base_path, "web", "dist", "wasm", "module.params"), # dyg add
+        # os.path.join(base_path, "web", "dist", "wasm", "tuning.wasm"), # dyg add
     ]
     
-    tunning_wasm = os.path.join(base_path, "web", "dist", "wasm", "turning.wasm")
+    tunning_wasm = os.path.join(base_path, "web", "dist", "tuning.wasm")
+    print(tunning_wasm)
+    # tunning_wasm = os.path.join(base_path, "web", "dist", "wasm", "tuning.wasm")
     if os.path.exists(tunning_wasm):
         resource_files.append(tunning_wasm);
     print("resource_files : {}".format(resource_files))
@@ -47,7 +50,7 @@ def find_example_resource():
             if os.path.isfile(full_name):
                 resource_files.append(full_name)
     for fname in [index_page] + resource_files:
-        print(fname)
+        print(fname) 
         if not os.path.exists(fname):
             raise RuntimeError("Cannot find %s" % fname)
     return index_page, resource_files

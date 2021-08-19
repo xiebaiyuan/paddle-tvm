@@ -149,7 +149,7 @@ tvm.testing.assert_allclose(c.numpy(), answer, rtol=1e-5)
 
 # By simply tiling the loop 32x32, and hoisting ko, ki outside the blocking loops,
 # we can see big speedup compared with the baseline.
-evaluator = func.time_evaluator(func.entry_name, dev, number=10)
+evaluator = func.time_evaluator(func.entry_name, dev, number=100,repeat=100)
 print("Opt1: %f" % evaluator(a, b, c).mean)
 
 ################################################################################################
@@ -183,7 +183,7 @@ c = tvm.nd.array(numpy.zeros((M, N), dtype=dtype), dev)
 func(a, b, c)
 tvm.testing.assert_allclose(c.numpy(), answer, rtol=1e-5)
 
-evaluator = func.time_evaluator(func.entry_name, dev, number=10)
+evaluator = func.time_evaluator(func.entry_name, dev, number=100)
 print("Opt2: %f" % evaluator(a, b, c).mean)
 
 ################################################################################################
@@ -216,7 +216,7 @@ c = tvm.nd.array(numpy.zeros((M, N), dtype=dtype), dev)
 func(a, b, c)
 tvm.testing.assert_allclose(c.numpy(), answer, rtol=1e-5)
 
-evaluator = func.time_evaluator(func.entry_name, dev, number=10)
+evaluator = func.time_evaluator(func.entry_name, dev, number=100)
 print("Opt3: %f" % evaluator(a, b, c).mean)
 
 ################################################################################################
@@ -272,7 +272,7 @@ c = tvm.nd.array(numpy.zeros((M, N), dtype=dtype), dev)
 func(a, b, c)
 tvm.testing.assert_allclose(c.numpy(), answer, rtol=1e-5)
 
-evaluator = func.time_evaluator(func.entry_name, dev, number=10)
+evaluator = func.time_evaluator(func.entry_name, dev, number=100)
 print("Opt4: %f" % evaluator(a, b, c).mean)
 
 ################################################################################################
@@ -318,7 +318,7 @@ c = tvm.nd.array(numpy.zeros((M, N), dtype=dtype), dev)
 func(a, b, c)
 tvm.testing.assert_allclose(c.numpy(), answer, rtol=1e-5)
 
-evaluator = func.time_evaluator(func.entry_name, dev, number=10)
+evaluator = func.time_evaluator(func.entry_name, dev, number=100)
 print("Opt5: %f" % evaluator(a, b, c).mean)
 
 ################################################################################################

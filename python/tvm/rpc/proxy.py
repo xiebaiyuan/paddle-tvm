@@ -49,12 +49,15 @@ from .base import TrackerCode
 from .server import _server_env
 from .._ffi.base import py_str
 
+logger = logging.getLogger("RPCProxy")
+
 
 class ForwardHandler(object):
     """Forward handler to forward the message."""
 
     def _init_handler(self):
         """Initialize handler."""
+        logging.info("Initialize handler.")
         self._init_message = bytes()
         self._init_req_nbytes = 4
         self._magic = None

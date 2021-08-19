@@ -279,9 +279,21 @@ class TCPEventHandler(tornado_util.TCPHandler):
 
             logger.info("tracker receive UPDATE_INFO %s", args)
             info = args[1]
+            logger.info("tracker receive UPDATE_INFO info %s", info)
+
             assert isinstance(info, dict)
-            if info["addr"][0] is None:
-                info["addr"][0] = self._addr[0]
+            # logger.info(info)
+            print(info)
+
+            if info.get("addr") is None :
+                logger.info("tracker receive addr %s", info.get("addr"))
+            else:
+                if info.get("addr")[0] is None:
+                    logger.info("self._addr[0] : %s",self._addr[0])
+                    info["addr"][0] = self._addr[0]
+            
+            logger.info("tracker receive UPDATE_INFO after : info %s", info)
+
             self._info.update(info)
             self.ret_value(TrackerCode.SUCCESS)
         elif code == TrackerCode.SUMMARY:
@@ -439,9 +451,10 @@ class Tracker(object):
         Whether run in silent mode
     """
 
-    def __init__(self, host="0.0.0.0", port=9190, port_end=9199, silent=False):
-        if silent:
-            logger.setLevel(logging.WARN)
+    def __init__(self, host="0.0.0.0", port=9190, port_end=9190, silent=False):
+        # if True:
+        if True:
+            logger.setLevel(logging.DEBUG)
         self.proc = PopenWorker()
         # send the function
         self.proc.send(

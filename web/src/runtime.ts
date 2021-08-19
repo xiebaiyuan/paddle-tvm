@@ -791,6 +791,7 @@ export class Instance implements Disposable {
     func: PackedFunc | Function,
     override = false
   ): void {
+    console.log("registerFunc" + name)
     const packedFunc = this.toPackedFunc(func);
     const ioverride = override ? 1 : 0;
 
@@ -1129,19 +1130,21 @@ export class Instance implements Disposable {
         console.log("tvm.rpc.server.remove called")
       }
     );
+    
 
-    this.registerFunc(
-      "tvm.contrib.random.random_fill",
-      (_args: NDArray): void => {
-        console.log(_args)
-        console.log("tvm.contrib.random.random_fill called")
-        var data = new Float32Array(_args.shape)
-        data[0] = 0.0;
-        data[1] = 0.5;
-        _args.copyFrom(data);
-        // tvm.nd.array(np.random.uniform(size=n).astype("float32"), ctx)
-      }
-    );
+    // cause already regist exception
+    // this.registerFunc(
+    //   "tvm.contrib.random.random_fill",
+    //   (_args: NDArray): void => {
+    //     console.log(_args)
+    //     console.log("tvm.contrib.random.random_fill called")
+    //     var data = new Float32Array(_args.shape)
+    //     data[0] = 0.0;
+    //     data[1] = 0.5;
+    //     _args.copyFrom(data);
+    //     // tvm.nd.array(np.random.uniform(size=n).astype("float32"), ctx)
+    //   }
+    // );
 
     
   }

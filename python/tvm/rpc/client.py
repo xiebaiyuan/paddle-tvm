@@ -15,6 +15,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """RPC client tools"""
+from logging import Logger
 import os
 import stat
 import socket
@@ -326,7 +327,9 @@ class TrackerSession(object):
         res += "server-address\tkey\n"
         res += "----------------------------\n"
         for item in data["server_info"]:
+            print("item===> {}".format(item))
             addr = item["addr"]
+            print(addr)
             res += str(addr[0]) + ":" + str(addr[1]) + "\t"
             res += item["key"] + "\n"
             key = item["key"].split(":")[1]  # 'server:rasp3b` -> 'rasp3b'
