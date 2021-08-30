@@ -306,9 +306,9 @@ def tune_tasks(
 
     for i, tsk in enumerate(reversed(tasks)):
         prefix = "[Task %2d/%2d] " % (i + 1, len(tasks))
-        print("===============tune_tasks prefix ===========> "+ prefix)
+        # print("===============tune_tasks prefix ===========> "+ prefix)
         # create tuner
-        print("======> current tuner is "+ tuner)
+        # print("======> current tuner is "+ tuner)
         if tuner == "xgb" or tuner == "xgb-rank":
             tuner_obj = XGBTuner(tsk, loss_type="rank")
         elif tuner == "xgb_knob":
@@ -332,7 +332,7 @@ def tune_tasks(
 
         # process tuning
         tsk_trial = min(n_trial, len(tsk.config_space))
-        print("||||||||||||||||||||||||||||||||||||    before tuner_obj.tune .... ||||||||||||||||||||||||||||||||||||")
+        # print("||||||||||||||||||||||||||||||||||||    before tuner_obj.tune .... ||||||||||||||||||||||||||||||||||||")
 
         tuner_obj.tune(
             n_trial=tsk_trial,
@@ -343,7 +343,7 @@ def tune_tasks(
                 autotvm.callback.log_to_file(tmp_log_file),
             ],
         )
-        print("|||||||||||||||||||||||||||||||||||| after tuner_obj.tune .... ||||||||||||||||||||||||||||||||||||")
+        # print("|||||||||||||||||||||||||||||||||||| after tuner_obj.tune .... ||||||||||||||||||||||||||||||||||||")
 
 
     # pick best records to a cache file

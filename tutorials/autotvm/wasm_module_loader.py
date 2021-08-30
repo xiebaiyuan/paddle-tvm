@@ -33,7 +33,6 @@ def request_remote(device_key, host=None, port=None, priority=1, timeout=10):
     return tracker, remote
 
 def wasm_module_loader(tuning_deploy_path, pre_load_function=None):
-    print("wasm_module_loader in ")
     print("tuning_deploy_path: " + tuning_deploy_path)
     """Returns a default function that can be passed as module_loader to run_through_rpc.
     Parameters
@@ -48,7 +47,7 @@ def wasm_module_loader(tuning_deploy_path, pre_load_function=None):
     """
     @contextlib.contextmanager
     def default_module_loader_mgr(remote_kwargs, build_result):
-        print("=============== default_module_loader_mgr ============")
+        # print("=============== default_module_loader_mgr ============")
         # print("build_result : " + build_result)
 
         tracker, remote = request_remote(**remote_kwargs)
