@@ -1094,6 +1094,36 @@ export class Instance implements Disposable {
 
     this.registerAsyncServerFunc("wasm.TimeExecution", timeExecution);
     this.registerAsyncServerFunc("testing.asyncAddOne", addOne);
+
+    this.registerAsyncServerFunc("tvm.rpc.server.load_module",
+      async (_args: unknown): Promise<GraphExecutor> => {
+        console.log(_args)
+        console.log("tvm.rpc.server.load_module called")
+
+        const network = "mobilenet"
+        const graphJson = await (await fetch("./" + network + ".json")).text();
+        // const synset = await (await fetch("./imagenet1k_synset.json")).json();
+        const paramsBinary = new Uint8Array(
+          await (await fetch("./" + network + ".params")).arrayBuffer()
+        );
+
+        var ctx = this.cpu(0);
+        const syslib = this.systemLib();
+        const executor = this.createGraphExecutor(graphJson, syslib, ctx);
+        executor.loadParams(paramsBinary);
+        console.log("tvm.rpc.server.load_module returned")
+        console.log(executor)
+        return executor;
+      }
+    );
+
+    this.registerFunc(
+      "tvm.rpc.server.remove",
+      (_args: unknown): void => {
+        console.log(_args)
+        console.log("tvm.rpc.server.remove called")
+      }
+    );
   }
 
   private createPackedFuncFromCFunc(

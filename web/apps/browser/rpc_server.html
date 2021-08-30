@@ -43,7 +43,21 @@
         return new EmccWASI();
       };
 
-      new tvmjs.RPCServer(proxyUrl, key, getImports, customLog);
+      model = 'tuning.wasm'
+      fetch(model).then(response => response.arrayBuffer()).then(buffer => {
+        console.log("loading tuning.wasm succeed")
+        new tvmjs.RPCServer(proxyUrl, key, getImports, customLog, buffer, (filename) => {
+          console.log("receive restart event", filename);
+          location.reload();
+        });
+      })
+
+      // new tvmjs.RPCServer(proxyUrl, key, getImports, customLog);
+
+    }
+
+    window.onload = function() {
+      connectRPC()
     }
   </script>
   <body>
@@ -63,7 +77,7 @@
       name="proxyurl"
       id="proxyURL"
       type="text"
-      value="ws://localhost:8888/ws"
+      value="ws://0.0.0.0:8888/ws"
     /><br />
     RPC Server Key<input
       name="serverkey"

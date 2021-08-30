@@ -274,8 +274,12 @@ class TCPEventHandler(tornado_util.TCPHandler):
         elif code == TrackerCode.UPDATE_INFO:
             info = args[1]
             assert isinstance(info, dict)
-            if info["addr"][0] is None:
-                info["addr"][0] = self._addr[0]
+            if info.get("addr") is None :
+                logger.warning("tracker receive addr %s", info.get("addr"))
+            else:
+                if info.get("addr")[0] is None:
+                    logger.info("self._addr[0] : %s",self._addr[0])
+                    info["addr"][0] = self._addr[0]
             self._info.update(info)
             self.ret_value(TrackerCode.SUCCESS)
         elif code == TrackerCode.SUMMARY:

@@ -90,18 +90,24 @@ export class RPCServer {
   private pendingBytes = 0;
   private buffredBytes = 0;
   private messageQueue: Array<Uint8Array> = [];
+  private initialBuffer: any;
+  private restartCallback: any;
 
   constructor(
     url: string,
     key: string,
     getImports: () => Record<string, unknown>,
-    logger: (msg: string) => void = console.log
+    logger: (msg: string) => void = console.log,
+    initialBuffer: any,
+    restartCallback: any,
   ) {
     this.url = url;
     this.key = key;
     this.name = "WebSocketRPCServer[" + this.key + "]: ";
     this.getImports = getImports;
     this.logger = logger;
+    this.initialBuffer = initialBuffer;
+    this.restartCallback = restartCallback;
 
     this.checkLittleEndian();
     this.socket = compact.createWebSocket(url);
@@ -122,11 +128,16 @@ export class RPCServer {
   private onClose(_event: CloseEvent): void {
     if (this.inst !== undefined) {
       this.inst.dispose();
+      this.inst = undefined;
+      this.initialBuffer = null;
     }
     if (this.state == RPCServerState.ReceivePacketHeader) {
       this.log("Closing the server in clean state");
       this.log("Automatic reconnecting..");
-      new RPCServer(this.url, this.key, this.getImports, this.logger);
+      fetch('tuning.wasm').then(response => response.arrayBuffer()).then(buffer => {
+        console.log("loading turning.wasm succeed")
+        new RPCServer(this.url, this.key, this.getImports, this.logger, buffer, this.restartCallback);
+      })
     } else {
       this.log("Closing the server, final state=" + this.state);
     }
@@ -221,8 +232,10 @@ export class RPCServer {
           args.push(str);
         } else if (tcode == ArgTypeCode.TVMBytes) {
           args.push(reader.readByteArray());
-        } else {
-          throw new Error("cannot support type code " + tcode);
+        } else if (tcode == ArgTypeCode.Int) {
+          console.log("receive tcode 0");
+        }else {
+           throw new Error("cannot support type code " + tcode);
         }
       }
       this.onInitServer(args, header, body);
@@ -241,13 +254,11 @@ export class RPCServer {
     body: Uint8Array
   ): void {
     // start the server
-    assert(args[0] == "rpc.WasmSession");
     assert(this.pendingBytes == 0);
 
     const asyncInitServer = async (): Promise<void> => {
-      assert(args[1] instanceof Uint8Array);
-      const inst = await runtime.instantiate(
-        args[1].buffer,
+      var inst = await runtime.instantiate(
+        this.initialBuffer,
         this.getImports(),
         this.logger
       );
@@ -331,6 +342,7 @@ export class RPCServer {
           return localSession;
         }
       );
+      this.initGlobalFunction(this.inst);
       messageHandler(header, writeFlag);
       messageHandler(body, writeFlag);
       localSession.dispose();
@@ -344,6 +356,21 @@ export class RPCServer {
 
     this.state = RPCServerState.WaitForCallback;
     asyncInitServer();
+  }
+
+  private initGlobalFunction (instance: any) {
+    instance.registerFunc(
+      "tvm.rpc.server.upload",
+      (filenmae: unknown, databuffer: unknown): void => {
+        console.log(filenmae)
+        console.log(databuffer)
+        console.log("tvm.rpc.server.upload called in rpc server")
+
+        this.initialBuffer = databuffer;
+
+        this.restartCallback(filenmae);
+      }
+    );
   }
 
   private log(msg: string): void {

@@ -520,6 +520,13 @@ class RPCEndpoint::EventHandler : public dmlc::Stream {
       }
 
       auto* fconstructor = Registry::Get(constructor_name);
+      if (fconstructor == nullptr) {
+        constructor_name = "rpc.LocalSession";
+        serving_session_ = std::make_shared<LocalSession>();
+        fconstructor = Registry::Get(constructor_name);
+        constructor_args = TVMArgs(nullptr, nullptr, 0);
+      }
+
       ICHECK(fconstructor != nullptr) << " Cannot find session constructor " << constructor_name;
       TVMRetValue con_ret;
 

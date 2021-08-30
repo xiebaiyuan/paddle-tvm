@@ -52,6 +52,12 @@
 #include "src/runtime/system_library.cc"
 #include "src/runtime/workspace_pool.cc"
 
+// refer 2 runtime.ts start
+#include "src/runtime/graph_executor/graph_executor_factory.cc"
+// #include "src/runtime/rpc/rpc_server_env.cc"
+#include "src/runtime/contrib/random/random.cc"
+// refer 2 runtime.ts end
+
 // --- Implementations of backend and wasm runtime API. ---
 
 int TVMBackendParallelLaunch(FTVMParallelLambda flambda, void* cdata, int num_task) {

@@ -31,6 +31,9 @@ def find_example_resource():
         os.path.join(base_path, "web", "dist", "tvmjs.bundle.js"),
         os.path.join(base_path, "web", "dist", "wasm", "tvmjs_runtime.wasi.js"),
     ]
+    tunning_wasm = os.path.join(base_path, "web", "dist", "tuning.wasm")
+    if os.path.exists(tunning_wasm):
+        resource_files.append(tunning_wasm);
     resource_base = os.path.join(base_path, "web", "dist", "www")
     if os.path.isdir(resource_base):
         for fname in os.listdir(resource_base):

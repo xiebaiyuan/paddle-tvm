@@ -38,7 +38,7 @@ import tvm._ffi
 import tvm.ir.transform
 from tvm import nd
 from tvm import rpc as _rpc
-from tvm.contrib import ndk, nvcc, stackvm, tar
+from tvm.contrib import ndk, nvcc, stackvm, tar, emcc
 from tvm.driver import build
 from tvm.error import TVMError
 from tvm.target import Target
@@ -95,6 +95,8 @@ class LocalBuilder(Builder):
                 build_func = ndk.create_shared
             elif build_func == "stackvm":
                 build_func = stackvm.build
+            elif build_func == "wasm":
+                build_func = emcc.create_tvmjs_wasm
             else:
                 raise ValueError("Invalid build_func" + build_func)
         self.build_func = _WrappedBuildFunc(build_func)
@@ -419,17 +421,19 @@ class LocalRunner(RPCRunner):
         from ...rpc.tracker import Tracker
 
         self.task = task
-        tracker = Tracker(port=9000, port_end=10000, silent=True)
+        tracker = Tracker(host="0.0.0.0", port=9000, port_end=10000, silent=True)
         device_key = "$local$device$%d" % tracker.port
         server = Server(
+            host="0.0.0.0",
             port=9000,
             port_end=10000,
             key=device_key,
+            use_popen=True,
             silent=True,
-            tracker_addr=("127.0.0.1", tracker.port),
+            tracker_addr=(tracker.host, tracker.port),
         )
         self.key = device_key
-        self.host = "127.0.0.1"
+        self.host = tracker.host
         self.port = tracker.port
 
         super(LocalRunner, self).set_task(task)
